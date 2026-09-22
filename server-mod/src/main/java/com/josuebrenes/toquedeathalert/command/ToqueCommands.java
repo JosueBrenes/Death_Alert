@@ -6,6 +6,7 @@ import com.josuebrenes.toquedeathalert.migration.VanillaDeathsLookup;
 import com.josuebrenes.toquedeathalert.series.PlayerDeathRecord;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.command.argument.EntityArgumentType;
@@ -54,6 +55,14 @@ public final class ToqueCommands {
                         .requires(source -> source.hasPermissionLevel(ADMIN_LEVEL))
                         .then(CommandManager.argument("player", EntityArgumentType.player())
                                 .executes(this::importDeaths)))
+                .then(CommandManager.literal("objective")
+                        .requires(source -> source.hasPermissionLevel(ADMIN_LEVEL))
+                        .then(CommandManager.argument("text", StringArgumentType.greedyString())
+                                .executes(this::setObjective)))
+                .then(CommandManager.literal("try")
+                        .requires(source -> source.hasPermissionLevel(ADMIN_LEVEL))
+                        .then(CommandManager.argument("number", IntegerArgumentType.integer(1))
+                                .executes(this::setTry)))
                 .then(CommandManager.literal("resetDeaths")
                         .requires(source -> source.hasPermissionLevel(ADMIN_LEVEL))
                         .executes(this::resetSeries)));
@@ -99,6 +108,8 @@ public final class ToqueCommands {
 
         line(source, "Archivo", services.stats().file().toString());
         line(source, "Serie", "#" + services.stats().seriesNumber());
+        line(source, "Try", "#" + services.stats().tryNumber());
+        line(source, "Objetivo", services.stats().objective());
         line(source, "Import vanilla abierto", Boolean.toString(services.stats().isVanillaImportOpen()));
         line(source, "Jugador", record.displayName() + " (" + player.getUuid() + ")");
         line(source, "Muertes TOQUE", Integer.toString(record.deaths()));
@@ -138,6 +149,40 @@ public final class ToqueCommands {
                 + player.getGameProfile().getName() + " importado desde vanilla: "
                 + starting + " muertes.").formatted(Formatting.RED), true);
         return starting;
+    }
+
+    /** The objective line shown at the bottom of the player list. */
+    private int setObjective(CommandContext<ServerCommandSource> context) {
+        ToqueRuntime.Services services = require(context);
+        if (services == null) {
+            return 0;
+        }
+        String objective = StringArgumentType.getString(context, "text");
+        services.stats().setObjective(objective);
+        services.tabList().invalidateAll();
+        services.tabList().sendHeaderAndFooter(context.getSource().getServer());
+
+        context.getSource().sendFeedback(() -> Text.literal(SKULL + " Objetivo: " + objective)
+                .formatted(Formatting.GOLD), true);
+        ToqueLog.info("Objective set to: {}", objective);
+        return 1;
+    }
+
+    /** Manual correction, for when the Try counter and the real series disagree. */
+    private int setTry(CommandContext<ServerCommandSource> context) {
+        ToqueRuntime.Services services = require(context);
+        if (services == null) {
+            return 0;
+        }
+        int number = IntegerArgumentType.getInteger(context, "number");
+        services.stats().setTryNumber(number);
+        services.tabList().invalidateAll();
+        services.tabList().sendHeaderAndFooter(context.getSource().getServer());
+
+        context.getSource().sendFeedback(() -> Text.literal(SKULL + " Try #" + number + ".")
+                .formatted(Formatting.GOLD), true);
+        ToqueLog.info("Try counter set to #{}", number);
+        return number;
     }
 
     private int resetSeries(CommandContext<ServerCommandSource> context) {
