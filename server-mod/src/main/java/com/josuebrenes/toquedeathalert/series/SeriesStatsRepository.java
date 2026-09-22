@@ -70,6 +70,11 @@ public final class SeriesStatsRepository {
         return stats.deathsOf(uuid);
     }
 
+    /** Every death by every player so far in this series. */
+    public int totalDeaths() {
+        return stats.all().stream().mapToInt(PlayerDeathRecord::deaths).sum();
+    }
+
     public Optional<PlayerDeathRecord> find(UUID uuid) {
         return stats.find(uuid);
     }
