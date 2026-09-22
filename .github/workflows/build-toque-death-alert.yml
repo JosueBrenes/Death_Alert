@@ -1,6 +1,11 @@
 name: Build TOQUE Death Alert
 
 on:
+  push:
+    branches: ["main"]
+    paths:
+      - "server-mod/**"
+      - ".github/workflows/build-toque-death-alert.yml"
   pull_request:
     paths:
       - "server-mod/**"
