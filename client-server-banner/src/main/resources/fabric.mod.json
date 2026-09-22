@@ -12,7 +12,10 @@
     ]
   },
   "mixins": [
-    "toque-server-banner.mixins.json"
+    {
+      "config": "toque-server-banner.mixins.json",
+      "environment": "client"
+    }
   ],
   "depends": {
     "fabricloader": ">=0.19.5",
