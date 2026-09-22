@@ -24,9 +24,14 @@ public final class TabListService {
     /** Refresh interval in server ticks; 4 ticks is five updates per second. */
     private static final int REFRESH_TICKS = 4;
 
+    /** How often the banner is re-checked, in ticks; the day only changes slowly. */
+    private static final int BANNER_TICKS = 100;
+
     private final TabRowRenderer renderer;
     private final Map<UUID, String> lastSent = new ConcurrentHashMap<>();
     private int tickCounter;
+    private int bannerCounter;
+    private String lastBanner = "";
 
     public TabListService(TabRowRenderer renderer) {
         this.renderer = renderer;
@@ -38,11 +43,27 @@ public final class TabListService {
     }
 
     public void onServerTick(MinecraftServer server) {
+        if (++bannerCounter >= BANNER_TICKS) {
+            bannerCounter = 0;
+            resendBannerIfChanged(server);
+        }
         if (++tickCounter < REFRESH_TICKS) {
             return;
         }
         tickCounter = 0;
         broadcastChangedRows(server);
+    }
+
+    /** Keeps DAY and the online count current without spamming the packet. */
+    private void resendBannerIfChanged(MinecraftServer server) {
+        if (server.getPlayerManager().getPlayerList().isEmpty()) {
+            return;
+        }
+        String banner = renderer.header(server).getString() + renderer.footer(server).getString();
+        if (!banner.equals(lastBanner)) {
+            lastBanner = banner;
+            sendHeaderAndFooter(server);
+        }
     }
 
     private void broadcastChangedRows(MinecraftServer server) {
@@ -73,6 +94,7 @@ public final class TabListService {
     /** Forces every row to be resent on the next tick. */
     public void invalidateAll() {
         lastSent.clear();
+        lastBanner = "";
     }
 
     public void invalidate(UUID uuid) {
@@ -81,7 +103,7 @@ public final class TabListService {
 
     public void sendHeaderAndFooter(MinecraftServer server) {
         PlayerListHeaderS2CPacket packet =
-                new PlayerListHeaderS2CPacket(renderer.header(), renderer.footer(server));
+                new PlayerListHeaderS2CPacket(renderer.header(server), renderer.footer(server));
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             player.networkHandler.sendPacket(packet);
         }
