@@ -12,12 +12,13 @@ import java.util.UUID;
 /**
  * Reads and writes the {@code deaths.json} document.
  *
- * <p>Format 2 adds {@code vanillaImport} and the per-player {@code migrated} flag.
+ * <p>Format 3 adds {@code try}, {@code lastSeed} and {@code objective}.
+ * Format 2 adds {@code vanillaImport} and the per-player {@code migrated} flag.
  * A format 1 document still loads: no flags means nobody has been migrated yet and
  * the import is open, which is exactly what an upgrade from the older mod needs.
  */
 final class SeriesStatsCodec {
-    static final int FORMAT_VERSION = 2;
+    static final int FORMAT_VERSION = 3;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
@@ -38,6 +39,11 @@ final class SeriesStatsCodec {
         root.addProperty("formatVersion", FORMAT_VERSION);
         root.addProperty("series", stats.seriesNumber());
         root.addProperty("vanillaImport", stats.isVanillaImportOpen());
+        root.addProperty("try", stats.tryNumber());
+        root.addProperty("objective", stats.objective());
+        if (stats.isSeedKnown()) {
+            root.addProperty("lastSeed", stats.lastSeed());
+        }
         root.add("players", players);
         return GSON.toJson(root);
     }
@@ -57,6 +63,15 @@ final class SeriesStatsCodec {
         }
         if (root.has("vanillaImport") && root.get("vanillaImport").isJsonPrimitive()) {
             target.setVanillaImportOpen(root.get("vanillaImport").getAsBoolean());
+        }
+        if (root.has("try") && root.get("try").isJsonPrimitive()) {
+            target.setTryNumber(root.get("try").getAsInt());
+        }
+        if (root.has("objective") && root.get("objective").isJsonPrimitive()) {
+            target.setObjective(root.get("objective").getAsString());
+        }
+        if (root.has("lastSeed") && root.get("lastSeed").isJsonPrimitive()) {
+            target.rememberSeed(root.get("lastSeed").getAsLong());
         }
         if (!root.has("players") || !root.get("players").isJsonObject()) {
             return;

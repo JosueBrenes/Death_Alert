@@ -45,6 +45,22 @@ public final class ToqueDeathAlert implements ModInitializer {
     private void registerLifecycle() {
         ServerLifecycleEvents.SERVER_STARTING.register(server -> RUNTIME.bind(buildServices(server)));
 
+        // The world exists only once the server has started, and its seed is what
+        // tells us Hardcore World Reset has rebuilt it into the next Try.
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            ToqueRuntime.Services services = RUNTIME.services();
+            if (services == null || server.getOverworld() == null) {
+                return;
+            }
+            long seed = server.getOverworld().getSeed();
+            if (services.stats().advanceTryIfWorldChanged(seed)) {
+                ToqueLog.info("New world detected; this is Try #{}.", services.stats().tryNumber());
+            } else {
+                ToqueLog.info("Same world as before; still Try #{}.", services.stats().tryNumber());
+            }
+            services.tabList().sendHeaderAndFooter(server);
+        });
+
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             SeriesStatsRepository stats = RUNTIME.stats();
             if (stats != null) {

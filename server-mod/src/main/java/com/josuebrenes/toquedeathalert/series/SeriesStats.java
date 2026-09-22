@@ -14,9 +14,15 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>Pure state, no I/O. {@link SeriesStatsRepository} owns persistence.
  */
 public final class SeriesStats {
+    public static final String DEFAULT_OBJECTIVE = "KILL THE DRAGON";
+
     private final Map<UUID, PlayerDeathRecord> records = new ConcurrentHashMap<>();
     private volatile int seriesNumber = 1;
     private volatile boolean vanillaImportOpen = true;
+    private volatile int tryNumber = 1;
+    private volatile long lastSeed;
+    private volatile boolean seedKnown;
+    private volatile String objective = DEFAULT_OBJECTIVE;
 
     public int seriesNumber() {
         return seriesNumber;
@@ -33,6 +39,55 @@ public final class SeriesStats {
 
     public void setVanillaImportOpen(boolean open) {
         this.vanillaImportOpen = open;
+    }
+
+    public int tryNumber() {
+        return tryNumber;
+    }
+
+    public void setTryNumber(int tryNumber) {
+        this.tryNumber = Math.max(1, tryNumber);
+    }
+
+    public String objective() {
+        return objective;
+    }
+
+    public void setObjective(String objective) {
+        this.objective = objective == null || objective.isBlank() ? DEFAULT_OBJECTIVE : objective;
+    }
+
+    public long lastSeed() {
+        return lastSeed;
+    }
+
+    public boolean isSeedKnown() {
+        return seedKnown;
+    }
+
+    public void rememberSeed(long seed) {
+        this.lastSeed = seed;
+        this.seedKnown = true;
+    }
+
+    /**
+     * A Try is one world. Hardcore World Reset rebuilds the world with a fresh
+     * seed, so a seed we have not seen before means the next Try has started.
+     * The first seed ever seen only establishes the baseline.
+     *
+     * @return true when the Try counter moved
+     */
+    public boolean advanceTryIfWorldChanged(long seed) {
+        if (!seedKnown) {
+            rememberSeed(seed);
+            return false;
+        }
+        if (seed == lastSeed) {
+            return false;
+        }
+        rememberSeed(seed);
+        tryNumber++;
+        return true;
     }
 
     public int deathsOf(UUID uuid) {
@@ -68,11 +123,16 @@ public final class SeriesStats {
         records.replaceAll((uuid, record) -> record.migrated(0));
         vanillaImportOpen = false;
         seriesNumber++;
+        tryNumber = 1;
     }
 
     public void clear() {
         records.clear();
         seriesNumber = 1;
         vanillaImportOpen = true;
+        tryNumber = 1;
+        lastSeed = 0L;
+        seedKnown = false;
+        objective = DEFAULT_OBJECTIVE;
     }
 }

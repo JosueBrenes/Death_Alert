@@ -41,6 +41,31 @@ public final class SeriesStatsRepository {
         return stats.isVanillaImportOpen();
     }
 
+    public int tryNumber() {
+        return stats.tryNumber();
+    }
+
+    public String objective() {
+        return stats.objective();
+    }
+
+    public void setObjective(String objective) {
+        stats.setObjective(objective);
+        save();
+    }
+
+    public void setTryNumber(int tryNumber) {
+        stats.setTryNumber(tryNumber);
+        save();
+    }
+
+    /** Bumps the Try counter when the world has been rebuilt with a new seed. */
+    public boolean advanceTryIfWorldChanged(long seed) {
+        boolean advanced = stats.advanceTryIfWorldChanged(seed);
+        save();
+        return advanced;
+    }
+
     public int deathsOf(UUID uuid) {
         return stats.deathsOf(uuid);
     }
