@@ -6,30 +6,42 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.network.ServerInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Decides which entry in the multiplayer list is the TOQUE server.
  *
- * <p>Matching is done on the address, never on the display name: the name is
- * whatever the player typed when they added the server and they can rename it at
- * any time, while the address is what actually identifies the server.
+ * <p>The address is the primary test, because the display name is whatever the
+ * player typed when they added the server and they can rename it at any time.
+ * Names are kept as a fallback, since a tunnelled address changes whenever the
+ * tunnel is recreated and the banner should not quietly disappear when it does.
  *
- * <p>The addresses live in {@code config/toque-server-banner.json} so they can be
+ * <p>Both lists live in {@code config/toque-server-banner.json} so they can be
  * changed without rebuilding the mod.
  */
 public final class ToqueServerBannerConfig {
+    private static final Logger LOGGER = LoggerFactory.getLogger("TOQUE");
     private static final String FILE_NAME = "toque-server-banner.json";
-    private static final String DEFAULT_ADDRESS = "ivan-fda.tun.ply.gg";
 
-    private static volatile Set<String> addresses = Set.of(DEFAULT_ADDRESS);
+    private static final List<String> DEFAULT_ADDRESSES = List.of("ivan-fda.tun.ply.gg");
+    private static final List<String> DEFAULT_NAMES = List.of("toque");
+
+    private static volatile Set<String> addresses = Set.copyOf(DEFAULT_ADDRESSES);
+    private static volatile Set<String> names = Set.copyOf(DEFAULT_NAMES);
+
+    /** Entries already reported, so the diagnostics do not repeat every frame. */
+    private static final Set<String> reported = ConcurrentHashMap.newKeySet();
 
     private ToqueServerBannerConfig() {
     }
@@ -38,44 +50,89 @@ public final class ToqueServerBannerConfig {
         return addresses;
     }
 
+    public static Set<String> names() {
+        return names;
+    }
+
     /** Reads the config, writing a default one the first time the mod runs. */
     public static void load() {
         Path file = FabricLoader.getInstance().getConfigDir().resolve(FILE_NAME);
         if (!Files.isRegularFile(file)) {
             writeDefault(file);
-            return;
+        } else {
+            read(file);
         }
-        try {
-            JsonElement parsed = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8));
-            JsonArray array = parsed.getAsJsonObject().getAsJsonArray("addresses");
+        LOGGER.info("[TOQUE] Matching addresses {} and names {}.", addresses, names);
+    }
 
-            Set<String> loaded = new LinkedHashSet<>();
-            for (JsonElement element : array) {
-                String address = normalise(element.getAsString());
-                if (!address.isEmpty()) {
-                    loaded.add(address);
-                }
-            }
-            if (!loaded.isEmpty()) {
-                addresses = Set.copyOf(loaded);
-            }
-            log("Watching " + addresses);
+    private static void read(Path file) {
+        try {
+            JsonObject root = JsonParser.parseString(
+                    Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
+            addresses = readList(root, "addresses", DEFAULT_ADDRESSES, true);
+            names = readList(root, "names", DEFAULT_NAMES, false);
         } catch (IOException | RuntimeException e) {
-            log("Could not read " + file + " (" + e + "). Using the default address.");
+            LOGGER.warn("[TOQUE] Could not read {} ({}). Using the defaults.", file, e.toString());
         }
     }
 
-    /** True when this list entry points at a TOQUE server. */
+    private static Set<String> readList(JsonObject root, String key, List<String> fallback,
+                                        boolean stripPort) {
+        if (!root.has(key) || !root.get(key).isJsonArray()) {
+            return Set.copyOf(fallback);
+        }
+        Set<String> values = new LinkedHashSet<>();
+        for (JsonElement element : root.getAsJsonArray(key)) {
+            String value = stripPort ? normalise(element.getAsString())
+                    : element.getAsString().trim().toLowerCase(Locale.ROOT);
+            if (!value.isEmpty()) {
+                values.add(value);
+            }
+        }
+        return values.isEmpty() ? Set.copyOf(fallback) : Set.copyOf(values);
+    }
+
+    /**
+     * True when this list entry points at a TOQUE server.
+     *
+     * <p>The first time each distinct entry is tested the result is logged, so a
+     * banner that does not show up can be traced to the address it actually has
+     * rather than guessed at.
+     */
     public static boolean matches(ServerInfo server) {
         if (server == null) {
             return false;
         }
         String address = normalise(server.address);
+        String name = server.name == null ? "" : server.name.trim().toLowerCase(Locale.ROOT);
+        boolean matched = matchesAddress(address) || matchesName(name);
+
+        String key = name + "\u0000" + address;
+        if (reported.add(key)) {
+            LOGGER.info("[TOQUE] Server list entry name='{}' address='{}' -> banner {}.",
+                    server.name, server.address, matched ? "ON" : "off");
+        }
+        return matched;
+    }
+
+    private static boolean matchesAddress(String address) {
         if (address.isEmpty()) {
             return false;
         }
         for (String known : addresses) {
             if (address.equals(known) || address.endsWith("." + known)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean matchesName(String name) {
+        if (name.isEmpty()) {
+            return false;
+        }
+        for (String known : names) {
+            if (name.contains(known)) {
                 return true;
             }
         }
@@ -93,21 +150,21 @@ public final class ToqueServerBannerConfig {
     }
 
     private static void writeDefault(Path file) {
-        JsonArray array = new JsonArray();
-        array.add(DEFAULT_ADDRESS);
         JsonObject root = new JsonObject();
-        root.add("addresses", array);
-
+        root.add("addresses", toArray(DEFAULT_ADDRESSES));
+        root.add("names", toArray(DEFAULT_NAMES));
         try {
             Files.createDirectories(file.getParent());
             Files.writeString(file, root.toString(), StandardCharsets.UTF_8);
-            log("Wrote a default config to " + file);
+            LOGGER.info("[TOQUE] Wrote a default config to {}.", file);
         } catch (IOException e) {
-            log("Could not write " + file + " (" + e + ").");
+            LOGGER.warn("[TOQUE] Could not write {} ({}).", file, e.toString());
         }
     }
 
-    private static void log(String message) {
-        System.out.println("[TOQUE] " + message);
+    private static JsonArray toArray(List<String> values) {
+        JsonArray array = new JsonArray();
+        values.forEach(array::add);
+        return array;
     }
 }
