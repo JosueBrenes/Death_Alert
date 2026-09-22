@@ -2,9 +2,11 @@ package com.josuebrenes.toquedeathalert;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
+import net.minecraft.item.Items;
 import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
 import net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket;
 import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
+import net.minecraft.registry.tag.DamageTypeTags;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.SoundCategory;
@@ -31,6 +33,15 @@ public class ToqueDeathAlert implements ModInitializer {
 
             MinecraftServer server = player.getServer();
             if (server == null) {
+                return true;
+            }
+
+            // ALLOW_DEATH fires before totems are checked. Mirror vanilla's
+            // tryUseTotem: a held totem saves the player unless the damage
+            // bypasses invulnerability (e.g. /kill, the void).
+            if (!damageSource.isIn(DamageTypeTags.BYPASSES_INVULNERABILITY)
+                    && (player.getMainHandStack().isOf(Items.TOTEM_OF_UNDYING)
+                    || player.getOffHandStack().isOf(Items.TOTEM_OF_UNDYING))) {
                 return true;
             }
 
