@@ -4,12 +4,11 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.network.ServerInfo;
-import net.minecraft.server.ServerMetadata;
 
 public final class ToqueServerBannerRenderer {
     private static final int BANNER_TEXTURE_WIDTH = 128;
     private static final int BANNER_TEXTURE_HEIGHT = 16;
-    private static final int BANNER_HEIGHT = 72;
+    private static final int BANNER_HEIGHT = 36;
 
     private static final String[] MESSAGES = {
             "☠ UNA VIDA. UNA RUN. UN DESTINO.",
@@ -67,7 +66,7 @@ public final class ToqueServerBannerRenderer {
                 textRenderer,
                 playerCount,
                 right - countWidth - 42,
-                y + 10,
+                y + 4,
                 0xFFF2F2F2
         );
 
@@ -82,8 +81,8 @@ public final class ToqueServerBannerRenderer {
             dayText = "DÍA --";
         }
 
-        context.drawTextWithShadow(textRenderer, tryText, right - 150, y + 10, 0xFFFF4A4A);
-        context.drawTextWithShadow(textRenderer, dayText, right - 88, y + 10, 0xFFE0E0E0);
+        context.drawTextWithShadow(textRenderer, tryText, right - 150, y + 4, 0xFFFF4A4A);
+        context.drawTextWithShadow(textRenderer, dayText, right - 88, y + 4, 0xFFE0E0E0);
 
         String message = MESSAGES[messageIndex];
         int maxMessageWidth = Math.max(120, entryWidth - 230);
@@ -96,7 +95,7 @@ public final class ToqueServerBannerRenderer {
                 textRenderer,
                 message,
                 x + 108,
-                y + 52,
+                y + 24,
                 messageColor
         );
 
@@ -105,7 +104,7 @@ public final class ToqueServerBannerRenderer {
                 textRenderer,
                 subtitle,
                 x + 108,
-                y + 30,
+                y + 13,
                 0xFFFF3333
         );
     }
@@ -122,10 +121,10 @@ public final class ToqueServerBannerRenderer {
     private static void drawPing(DrawContext context, int x, int y, int entryWidth, long ping) {
         int bars = ping < 0 ? 0 : ping < 80 ? 5 : ping < 150 ? 4 : ping < 250 ? 3 : ping < 400 ? 2 : 1;
         int startX = x + entryWidth - 25;
-        int baseY = y + 55;
+        int baseY = y + 31;
 
         for (int i = 0; i < 5; i++) {
-            int barHeight = 4 + i * 3;
+            int barHeight = 2 + i * 2;
             int left = startX + i * 4;
             int top = baseY - barHeight;
             int color = i < bars ? 0xFF35E35A : 0xFF5A5A5A;
