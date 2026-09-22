@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "toque-death-alert",
+  "version": "${version}",
+  "name": "TOQUE Death Alert",
+  "description": "Server-side death alert for the TOQUE hardcore series.",
+  "authors": ["JosueBrenes"],
+  "environment": "server",
+  "entrypoints": {
+    "main": [
+      "com.josuebrenes.toquedeathalert.ToqueDeathAlert"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "fabric-api": ">=0.116.17",
+    "minecraft": "1.21.1"
+  }
+}
