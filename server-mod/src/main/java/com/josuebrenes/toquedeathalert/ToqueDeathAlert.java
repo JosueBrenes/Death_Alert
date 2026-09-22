@@ -19,17 +19,26 @@ public class ToqueDeathAlert implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
+        System.out.println("[TOQUE] Death Alert loaded.");
+
+        // Hardcore World Reset intercepts/cancels the normal death flow,
+        // so AFTER_DEATH may never fire. ALLOW_DEATH runs when fatal damage
+        // is detected, before HWR's death interception.
+        ServerLivingEntityEvents.ALLOW_DEATH.register((entity, damageSource, damageAmount) -> {
             if (!(entity instanceof ServerPlayerEntity player)) {
-                return;
+                return true;
             }
 
             MinecraftServer server = player.getServer();
             if (server == null) {
-                return;
+                return true;
             }
 
+            System.out.println("[TOQUE] Death detected: " + player.getName().getString());
             announceDeath(server, player);
+
+            // Do not cancel the death. Hardcore World Reset still handles it.
+            return true;
         });
     }
 
