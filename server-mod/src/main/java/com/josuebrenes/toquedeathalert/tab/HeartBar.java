@@ -11,11 +11,13 @@ import java.util.Locale;
  *
  * <p>The ten slots are scaled to the player's actual maximum health, so attribute
  * or effect changes still read correctly instead of pretending everyone has 20 HP.
- * The default font has no half-heart glyph, so a half is shown as a gold heart and
- * the exact numbers are appended, which removes any ambiguity.
+ * The default font has no half-heart glyph, so a half is shown as a gold heart.
+ * The exact numbers are appended only when the maximum is not the usual 20, where
+ * ten hearts would otherwise be misleading.
  */
 public final class HeartBar {
     private static final int SLOTS = 10;
+    private static final float VANILLA_MAX_HEALTH = 20.0F;
     private static final String FULL = "♥";
     private static final String EMPTY = "♡";
 
@@ -44,8 +46,13 @@ public final class HeartBar {
         if (empty > 0) {
             bar.append(Text.literal(EMPTY.repeat(empty)).formatted(Formatting.DARK_GRAY));
         }
-        bar.append(Text.literal(" " + number(current) + "/" + number(safeMax))
-                .formatted(Formatting.GRAY));
+        // On a normal 20 HP bar the hearts already say it, and the numbers were
+        // just noise on every row. They earn their place only when a potion or an
+        // attribute has moved the maximum, where ten hearts no longer mean 20 HP.
+        if (safeMax != VANILLA_MAX_HEALTH) {
+            bar.append(Text.literal(" " + number(current) + "/" + number(safeMax))
+                    .formatted(Formatting.GRAY));
+        }
         return bar;
     }
 

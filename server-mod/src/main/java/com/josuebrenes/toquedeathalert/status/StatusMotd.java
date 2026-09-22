@@ -2,13 +2,12 @@ package com.josuebrenes.toquedeathalert.status;
 
 import com.josuebrenes.toquedeathalert.ToqueDeathAlert;
 import com.josuebrenes.toquedeathalert.core.FontWidth;
+import com.josuebrenes.toquedeathalert.core.Gradient;
 import com.josuebrenes.toquedeathalert.series.SeriesStatsRepository;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.MutableText;
-import net.minecraft.text.Style;
 import net.minecraft.text.Text;
-import net.minecraft.text.TextColor;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -35,11 +34,6 @@ public final class StatusMotd {
     private static final String SKULL = "☠";
     private static final String ARROW = "»";
 
-    private static final int TITLE_FROM = 0xFF8A7A;
-    private static final int TITLE_TO = 0xA30D0D;
-    private static final int STATUS_FROM = 0xFFD257;
-    private static final int STATUS_TO = 0xD1761B;
-
     private static final long TICKS_PER_DAY = 24000L;
     private static final long TAGLINE_MILLIS = 4000L;
 
@@ -61,9 +55,9 @@ public final class StatusMotd {
             return null;
         }
 
-        return centred(titleLine(server, stats), TITLE_FROM, TITLE_TO)
+        return centred(titleLine(server, stats), Gradient.RED_FROM, Gradient.RED_TO)
                 .append(Text.literal("\n"))
-                .append(centred(deathLine(stats), STATUS_FROM, STATUS_TO));
+                .append(centred(deathLine(stats), Gradient.GOLD_FROM, Gradient.GOLD_TO));
     }
 
     /**
@@ -98,27 +92,8 @@ public final class StatusMotd {
 
     /** Centres the line in the MOTD area and fades it from one colour to the other. */
     private static MutableText centred(String text, int from, int to) {
-        MutableText result = Text.literal(FontWidth.centre(text, MOTD_WIDTH_PX, true));
-        int last = Math.max(1, text.length() - 1);
-
-        for (int i = 0; i < text.length(); i++) {
-            int colour = blend(from, to, (float) i / last);
-            result.append(Text.literal(String.valueOf(text.charAt(i)))
-                    .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(colour)).withBold(true)));
-        }
-        return result;
-    }
-
-    private static int blend(int from, int to, float ratio) {
-        return (channel(from, to, 16, ratio) << 16)
-                | (channel(from, to, 8, ratio) << 8)
-                | channel(from, to, 0, ratio);
-    }
-
-    private static int channel(int from, int to, int shift, float ratio) {
-        int start = (from >> shift) & 0xFF;
-        int end = (to >> shift) & 0xFF;
-        return Math.round(start + (end - start) * ratio);
+        return Text.literal(FontWidth.centre(text, MOTD_WIDTH_PX, true))
+                .append(Gradient.apply(text, from, to, true));
     }
 
     private static long currentDay(MinecraftServer server) {
