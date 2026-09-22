@@ -4,6 +4,7 @@
   "package": "com.josuebrenes.toquedeathalert.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "MinecraftServerMixin",
     "ServerPlayerEntityMixin"
   ],
   "injectors": {
