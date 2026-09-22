@@ -1,141 +1,143 @@
 package com.josuebrenes.toqueserverbanner;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.network.ServerInfo;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
+/**
+ * Paints the TOQUE entry over the vanilla one.
+ *
+ * <p>Drawing happens after vanilla has rendered, covering the whole row with an
+ * opaque panel. Vanilla still runs: the entry is what kicks off the status ping
+ * and loads the favicon, so it must not be cancelled or the row would never learn
+ * its player count, its ping or its MOTD.
+ */
 public final class ToqueServerBannerRenderer {
-    private static final int BANNER_TEXTURE_WIDTH = 128;
-    private static final int BANNER_TEXTURE_HEIGHT = 16;
-    private static final int BANNER_HEIGHT = 36;
-
+    /** Every character here must exist in Minecraft's font: no emoji above the BMP. */
     private static final String[] MESSAGES = {
             "☠ UNA VIDA. UNA RUN. UN DESTINO.",
             "⚔ SOBREVIVE • EXPLORA • CONSTRUYE",
-            "🔥 ¿CUÁNTO DURARÁ ESTA RUN?",
+            "⚡ ¿CUÁNTO DURARÁ ESTA RUN?",
             "☠ SI UNO MUERE, TODOS REINICIAMOS."
     };
+    private static final long MESSAGE_MILLIS = 1800L;
+    private static final long PULSE_MILLIS = 2200L;
+
+    private static final int LOGO_TEXTURE_WIDTH = 128;
+    private static final int LOGO_TEXTURE_HEIGHT = 16;
+    private static final int LOGO_WIDTH = 80;
+    private static final int LOGO_HEIGHT = 10;
+
+    private static final int PADDING = 5;
+
+    private static final int BACKGROUND_TOP = 0xF01A0406;
+    private static final int BACKGROUND_BOTTOM = 0xF00D0203;
+    private static final int BACKGROUND_TOP_HOVER = 0xF043090D;
+    private static final int BACKGROUND_BOTTOM_HOVER = 0xF01E0407;
 
     private ToqueServerBannerRenderer() {
     }
 
-    public static void render(
-            DrawContext context,
-            ServerInfo server,
-            int x,
-            int y,
-            int entryWidth,
-            int mouseX,
-            int mouseY,
-            boolean hovered
-    ) {
-        int height = BANNER_HEIGHT;
-        int right = x + entryWidth;
-
-        context.drawTexture(
-                ToqueServerBannerClientAssets.BANNER,
-                x,
-                y,
-                0,
-                0,
-                entryWidth,
-                height,
-                BANNER_TEXTURE_WIDTH,
-                BANNER_TEXTURE_HEIGHT
-        );
-
-        long time = System.currentTimeMillis();
-        int messageIndex = (int) ((time / 1800L) % MESSAGES.length);
-        float pulse = 0.5F + 0.5F * (float) Math.sin(time / 260.0D);
-        int glow = 150 + (int) (90.0F * pulse);
-
-        if (hovered) {
-            context.fill(x, y, right, y + height, (glow << 24) | 0x330000);
-            context.drawBorder(x, y, entryWidth, height, 0xFFFF3333);
-        } else {
-            context.drawBorder(x, y, entryWidth, height, (glow << 24) | 0x660000);
-        }
-
+    public static void render(DrawContext context, ServerInfo server,
+                              int x, int y, int entryWidth, int entryHeight, boolean hovered) {
         MinecraftClient client = MinecraftClient.getInstance();
-        TextRenderer textRenderer = client.textRenderer;
+        TextRenderer font = client.textRenderer;
+        int right = x + entryWidth;
+        int bottom = y + entryHeight;
 
-        String playerCount = getPlayerCount(server);
-        int countWidth = textRenderer.getWidth(playerCount);
-        context.drawTextWithShadow(
-                textRenderer,
-                playerCount,
-                right - countWidth - 42,
-                y + 4,
-                0xFFF2F2F2
-        );
+        RenderSystem.enableBlend();
+        drawPanel(context, x, y, right, bottom, hovered);
 
-        drawPing(context, x, y, entryWidth, server.ping);
+        context.drawTexture(ToqueServerBannerClientAssets.BANNER,
+                x + PADDING, y + PADDING, LOGO_WIDTH, LOGO_HEIGHT,
+                0.0F, 0.0F, LOGO_TEXTURE_WIDTH, LOGO_TEXTURE_HEIGHT,
+                LOGO_TEXTURE_WIDTH, LOGO_TEXTURE_HEIGHT);
 
-        String tryText = extractTag(server.label.getString(), "TRY #");
-        String dayText = extractTag(server.label.getString(), "DÍA");
-        if (tryText == null) {
-            tryText = "TRY --";
-        }
-        if (dayText == null) {
-            dayText = "DÍA --";
-        }
+        drawSeries(context, font, server, right, y + PADDING);
+        context.drawTextWithShadow(font,
+                Text.literal("☠ TOQUE HARDCORE ☠").formatted(Formatting.RED, Formatting.BOLD),
+                x + PADDING, y + PADDING + LOGO_HEIGHT + 3, 0xFFFF5555);
+        drawStatus(context, font, server, right, y + PADDING + LOGO_HEIGHT + 3);
+        context.drawTextWithShadow(font,
+                Text.literal(currentMessage()).formatted(Formatting.GRAY),
+                x + PADDING, bottom - PADDING - font.fontHeight + 1, 0xFFB0A0A0);
 
-        context.drawTextWithShadow(textRenderer, tryText, right - 150, y + 4, 0xFFFF4A4A);
-        context.drawTextWithShadow(textRenderer, dayText, right - 88, y + 4, 0xFFE0E0E0);
-
-        String message = MESSAGES[messageIndex];
-        int maxMessageWidth = Math.max(120, entryWidth - 230);
-        if (textRenderer.getWidth(message) > maxMessageWidth) {
-            message = "☠ TOQUE HARDCORE ☠";
-        }
-
-        int messageColor = messageIndex == 3 ? 0xFFFF5555 : 0xFFF4F4F4;
-        context.drawTextWithShadow(
-                textRenderer,
-                message,
-                Math.max(x + 230, right - Math.min(220, textRenderer.getWidth(message))),
-                y + 24,
-                messageColor
-        );
-
+        RenderSystem.disableBlend();
     }
 
-    private static String getPlayerCount(ServerInfo server) {
-        if (server.players != null) {
-            return server.players.online() + "/" + server.players.max();
-        }
+    /** Dark panel with a border that breathes, and brightens under the cursor. */
+    private static void drawPanel(DrawContext context, int x, int y, int right, int bottom,
+                                  boolean hovered) {
+        context.fillGradient(x, y, right, bottom,
+                hovered ? BACKGROUND_TOP_HOVER : BACKGROUND_TOP,
+                hovered ? BACKGROUND_BOTTOM_HOVER : BACKGROUND_BOTTOM);
 
-        String fallback = server.playerCountLabel == null ? "" : server.playerCountLabel.getString();
-        return fallback.isBlank() ? "—/—" : fallback;
+        float pulse = (float) ((Math.sin(System.currentTimeMillis() % PULSE_MILLIS
+                / (double) PULSE_MILLIS * 2.0 * Math.PI) + 1.0) / 2.0);
+        int red = hovered ? 200 + (int) (55 * pulse) : 110 + (int) (60 * pulse);
+        int border = 0xFF000000 | (red << 16) | (red / 6 << 8) | (red / 6);
+
+        context.drawBorder(x, y, right - x, bottom - y, border);
+        context.fill(x, y, x + 2, bottom, border);
     }
 
-    private static void drawPing(DrawContext context, int x, int y, int entryWidth, long ping) {
-        int bars = ping < 0 ? 0 : ping < 80 ? 5 : ping < 150 ? 4 : ping < 250 ? 3 : ping < 400 ? 2 : 1;
-        int startX = x + entryWidth - 25;
-        int baseY = y + 31;
-
-        for (int i = 0; i < 5; i++) {
-            int barHeight = 2 + i * 2;
-            int left = startX + i * 4;
-            int top = baseY - barHeight;
-            int color = i < bars ? 0xFF35E35A : 0xFF5A5A5A;
-            context.fill(left, top, left + 3, baseY, color);
+    /** TRY and DAY, right aligned on the first line, when the MOTD carries them. */
+    private static void drawSeries(DrawContext context, TextRenderer font, ServerInfo server,
+                                   int right, int y) {
+        SeriesInfo series = SeriesInfo.from(server);
+        if (!series.hasTry() && !series.hasDay()) {
+            return;
         }
+        StringBuilder text = new StringBuilder();
+        if (series.hasTry()) {
+            text.append("TRY #").append(series.tryNumber());
+        }
+        if (series.hasTry() && series.hasDay()) {
+            text.append("   ");
+        }
+        if (series.hasDay()) {
+            text.append("DÍA ").append(series.day());
+        }
+
+        String line = text.toString();
+        context.drawTextWithShadow(font, Text.literal(line).formatted(Formatting.GOLD),
+                right - PADDING - font.getWidth(line), y, 0xFFFFAA00);
     }
 
-    private static String extractTag(String text, String tag) {
-        int start = text.indexOf(tag);
-        if (start < 0) {
-            return null;
-        }
+    /** Player count and ping, right aligned on the second line. */
+    private static void drawStatus(DrawContext context, TextRenderer font, ServerInfo server,
+                                   int right, int y) {
+        String players = playerCount(server);
+        String ping = server.ping > 0L ? server.ping + "ms" : "--";
+        String line = players + "   " + ping;
 
-        int end = text.indexOf('|', start);
-        if (end < 0) {
-            end = text.length();
-        }
+        context.drawTextWithShadow(font, Text.literal(line).formatted(Formatting.GRAY),
+                right - PADDING - font.getWidth(line), y, pingColour(server.ping));
+    }
 
-        String value = text.substring(start, end).trim();
-        return value.isEmpty() ? null : value;
+    private static String playerCount(ServerInfo server) {
+        if (server.players == null) {
+            return "-/-";
+        }
+        return server.players.online() + "/" + server.players.max();
+    }
+
+    private static int pingColour(long ping) {
+        if (ping <= 0L) {
+            return 0xFF808080;
+        }
+        if (ping < 150L) {
+            return 0xFF55FF55;
+        }
+        return ping < 300L ? 0xFFFFFF55 : 0xFFFF5555;
+    }
+
+    private static String currentMessage() {
+        int index = (int) ((System.currentTimeMillis() / MESSAGE_MILLIS) % MESSAGES.length);
+        return MESSAGES[index];
     }
 }
