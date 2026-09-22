@@ -1,72 +1,111 @@
 package com.josuebrenes.toquedeathalert;
 
+import com.josuebrenes.toquedeathalert.command.ToqueCommands;
+import com.josuebrenes.toquedeathalert.core.ToqueLog;
+import com.josuebrenes.toquedeathalert.core.ToqueRuntime;
+import com.josuebrenes.toquedeathalert.death.DeathAnnouncer;
+import com.josuebrenes.toquedeathalert.death.DeathListener;
+import com.josuebrenes.toquedeathalert.migration.VanillaDeathsImporter;
+import com.josuebrenes.toquedeathalert.migration.VanillaDeathsLookup;
+import com.josuebrenes.toquedeathalert.series.SeriesStatsRepository;
+import com.josuebrenes.toquedeathalert.tab.TabListService;
+import com.josuebrenes.toquedeathalert.tab.TabRowRenderer;
 import net.fabricmc.api.ModInitializer;
-import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
-import net.minecraft.item.Items;
-import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
-import net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket;
-import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
-import net.minecraft.registry.tag.DamageTypeTags;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvent;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Identifier;
 
-public class ToqueDeathAlert implements ModInitializer {
-    private static final SoundEvent DEATH_SOUND =
-            SoundEvent.of(Identifier.of("toque", "death"));
+/**
+ * Entry point. Wires the services together and registers the server events;
+ * all behaviour lives in the packages below.
+ */
+public final class ToqueDeathAlert implements ModInitializer {
+    public static final String MOD_ID = "toque-death-alert";
+
+    private static final ToqueRuntime RUNTIME = new ToqueRuntime();
+
+    public static ToqueRuntime runtime() {
+        return RUNTIME;
+    }
 
     @Override
     public void onInitialize() {
-        System.out.println("[TOQUE] Death Alert loaded.");
+        ToqueLog.info("Death Alert loaded.");
 
-        // Hardcore World Reset intercepts/cancels the normal death flow,
-        // so AFTER_DEATH may never fire. ALLOW_DEATH runs when fatal damage
-        // is detected, before HWR's death interception.
-        ServerLivingEntityEvents.ALLOW_DEATH.register((entity, damageSource, damageAmount) -> {
-            if (!(entity instanceof ServerPlayerEntity player)) {
-                return true;
+        registerLifecycle();
+        registerConnection();
+        registerTick();
+        registerCommands();
+        new DeathListener(RUNTIME, new DeathAnnouncer()).register();
+    }
+
+    private void registerLifecycle() {
+        ServerLifecycleEvents.SERVER_STARTING.register(server -> RUNTIME.bind(buildServices(server)));
+
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            SeriesStatsRepository stats = RUNTIME.stats();
+            if (stats != null) {
+                stats.save();
             }
-
-            MinecraftServer server = player.getServer();
-            if (server == null) {
-                return true;
-            }
-
-            // ALLOW_DEATH fires before totems are checked. Mirror vanilla's
-            // tryUseTotem: a held totem saves the player unless the damage
-            // bypasses invulnerability (e.g. /kill, the void).
-            if (!damageSource.isIn(DamageTypeTags.BYPASSES_INVULNERABILITY)
-                    && (player.getMainHandStack().isOf(Items.TOTEM_OF_UNDYING)
-                    || player.getOffHandStack().isOf(Items.TOTEM_OF_UNDYING))) {
-                return true;
-            }
-
-            System.out.println("[TOQUE] Death detected: " + player.getName().getString());
-            announceDeath(server, player);
-
-            // Do not cancel the death. Hardcore World Reset still handles it.
-            return true;
+            RUNTIME.unbind();
         });
     }
 
-    private static void announceDeath(MinecraftServer server, ServerPlayerEntity deadPlayer) {
-        Text title = Text.literal("☠ ")
-                .formatted(Formatting.DARK_RED, Formatting.BOLD)
-                .append(deadPlayer.getName().copy().formatted(Formatting.RED, Formatting.BOLD))
-                .append(Text.literal(" HA MUERTO ☠").formatted(Formatting.DARK_RED, Formatting.BOLD));
+    /**
+     * The stats live in {@code config/toque-death-alert/deaths.json}, outside the
+     * world folder that Hardcore World Reset deletes on every new Try.
+     */
+    private ToqueRuntime.Services buildServices(MinecraftServer server) {
+        SeriesStatsRepository stats = new SeriesStatsRepository(server.getRunDirectory());
+        stats.load();
 
-        Text subtitle = Text.literal("LA RUN HA TERMINADO")
-                .formatted(Formatting.RED, Formatting.BOLD);
+        TabListService tabList = new TabListService(new TabRowRenderer(stats));
+        VanillaDeathsImporter importer = new VanillaDeathsImporter(stats, new VanillaDeathsLookup());
 
-        for (ServerPlayerEntity viewer : server.getPlayerManager().getPlayerList()) {
-            viewer.networkHandler.sendPacket(new TitleFadeS2CPacket(5, 80, 10));
-            viewer.networkHandler.sendPacket(new TitleS2CPacket(title));
-            viewer.networkHandler.sendPacket(new SubtitleS2CPacket(subtitle));
-            viewer.playSoundToPlayer(DEATH_SOUND, SoundCategory.MASTER, 10.0F, 1.0F);
-        }
+        ToqueLog.info("Stats loaded from {} (series #{}, vanilla import {}).",
+                stats.file(), stats.seriesNumber(),
+                stats.isVanillaImportOpen() ? "open" : "closed");
+        return new ToqueRuntime.Services(stats, tabList, importer);
+    }
+
+    private void registerConnection() {
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            ToqueRuntime.Services services = RUNTIME.services();
+            if (services == null) {
+                return;
+            }
+            ServerPlayerEntity player = handler.getPlayer();
+
+            services.importer().migrateOnJoin(server, player);
+            services.tabList().invalidate(player.getUuid());
+            // Everyone gets it: the footer carries the online count.
+            services.tabList().sendHeaderAndFooter(server);
+        });
+
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            TabListService tabList = RUNTIME.tabList();
+            if (tabList != null) {
+                tabList.invalidate(handler.getPlayer().getUuid());
+                tabList.sendHeaderAndFooter(server);
+            }
+        });
+    }
+
+    private void registerCommands() {
+        ToqueCommands commands = new ToqueCommands(RUNTIME);
+        CommandRegistrationCallback.EVENT.register(
+                (dispatcher, registryAccess, environment) -> commands.register(dispatcher));
+    }
+
+    private void registerTick() {
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            TabListService tabList = RUNTIME.tabList();
+            if (tabList != null) {
+                tabList.onServerTick(server);
+            }
+        });
     }
 }

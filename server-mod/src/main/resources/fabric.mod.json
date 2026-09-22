@@ -11,6 +11,9 @@
       "com.josuebrenes.toquedeathalert.ToqueDeathAlert"
     ]
   },
+  "mixins": [
+    "toque-death-alert.mixins.json"
+  ],
   "depends": {
     "fabricloader": ">=0.19.5",
     "fabric-api": ">=0.116.17",
