@@ -1,5 +1,6 @@
 package com.josuebrenes.toquedeathalert.tab;
 
+import com.josuebrenes.toquedeathalert.core.FontWidth;
 import com.josuebrenes.toquedeathalert.series.SeriesStatsRepository;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;

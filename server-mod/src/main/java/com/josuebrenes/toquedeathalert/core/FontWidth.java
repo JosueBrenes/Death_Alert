@@ -1,4 +1,4 @@
-package com.josuebrenes.toquedeathalert.tab;
+package com.josuebrenes.toquedeathalert.core;
 
 /**
  * Approximate width, in pixels, of a string in Minecraft's default font.
@@ -7,9 +7,13 @@ package com.josuebrenes.toquedeathalert.tab;
  * wrong: {@code i} is 2 pixels wide and {@code m} is 6. The server has no access
  * to the client's text renderer, so the ASCII advances are tabulated here.
  *
- * <p>Padding can only be done in whole spaces, which are 4 pixels, so a column
- * lands within 3 pixels of where it was asked for. Nothing here centres anything:
- * the client already centres every header and footer line on its own.
+ * <p>Padding can only be done in whole spaces, which are 4 pixels, so anything
+ * laid out here lands within 3 pixels of where it was asked for.
+ *
+ * <p>Whether centring is wanted depends on where the text goes. The player list
+ * header and footer are centred by the client already, so padding them would
+ * centre them twice; the server list MOTD is drawn left aligned, so it has to be
+ * padded here.
  */
 public final class FontWidth {
     /** Advance of every printable ASCII character, including the 1px gap after it. */
@@ -43,11 +47,22 @@ public final class FontWidth {
     }
 
     public static int of(String text) {
+        return of(text, false);
+    }
+
+    /** Bold text is drawn twice, one pixel apart, so every glyph is a pixel wider. */
+    public static int of(String text, boolean bold) {
         int width = 0;
         for (int i = 0; i < text.length(); i++) {
-            width += of(text.charAt(i));
+            width += of(text.charAt(i)) + (bold ? 1 : 0);
         }
         return width;
+    }
+
+    /** Leading spaces that place {@code text} in the middle of a {@code targetPx} line. */
+    public static String centre(String text, int targetPx, boolean bold) {
+        int slack = targetPx - of(text, bold);
+        return slack <= 0 ? "" : " ".repeat(Math.round(slack / 2.0F / SPACE));
     }
 
     public static int of(char character) {
