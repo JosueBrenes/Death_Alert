@@ -2,6 +2,7 @@ package com.josuebrenes.toquedeathalert.core;
 
 import com.josuebrenes.toquedeathalert.migration.VanillaDeathsImporter;
 import com.josuebrenes.toquedeathalert.series.SeriesStatsRepository;
+import com.josuebrenes.toquedeathalert.series.TryWatcher;
 import com.josuebrenes.toquedeathalert.tab.TabListService;
 import org.jetbrains.annotations.Nullable;
 
@@ -18,7 +19,8 @@ public final class ToqueRuntime {
 
     public record Services(SeriesStatsRepository stats,
                            TabListService tabList,
-                           VanillaDeathsImporter importer) {
+                           VanillaDeathsImporter importer,
+                           TryWatcher tryWatcher) {
     }
 
     public void bind(Services services) {
@@ -50,5 +52,11 @@ public final class ToqueRuntime {
     public VanillaDeathsImporter importer() {
         Services current = services;
         return current == null ? null : current.importer();
+    }
+
+    @Nullable
+    public TryWatcher tryWatcher() {
+        Services current = services;
+        return current == null ? null : current.tryWatcher();
     }
 }

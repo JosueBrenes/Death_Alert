@@ -8,6 +8,7 @@ import com.josuebrenes.toquedeathalert.death.DeathListener;
 import com.josuebrenes.toquedeathalert.migration.VanillaDeathsImporter;
 import com.josuebrenes.toquedeathalert.migration.VanillaDeathsLookup;
 import com.josuebrenes.toquedeathalert.series.SeriesStatsRepository;
+import com.josuebrenes.toquedeathalert.series.TryWatcher;
 import com.josuebrenes.toquedeathalert.tab.TabListService;
 import com.josuebrenes.toquedeathalert.tab.TabRowRenderer;
 import net.fabricmc.api.ModInitializer;
@@ -45,19 +46,16 @@ public final class ToqueDeathAlert implements ModInitializer {
     private void registerLifecycle() {
         ServerLifecycleEvents.SERVER_STARTING.register(server -> RUNTIME.bind(buildServices(server)));
 
-        // The world exists only once the server has started, and its seed is what
-        // tells us Hardcore World Reset has rebuilt it into the next Try.
+        // The world only exists once the server has started. From then on the Try
+        // is watched on a timer, because Hardcore World Reset rebuilds the world in
+        // the middle of a session without ever restarting the server.
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             ToqueRuntime.Services services = RUNTIME.services();
-            if (services == null || server.getOverworld() == null) {
+            if (services == null) {
                 return;
             }
-            long seed = server.getOverworld().getSeed();
-            if (services.stats().advanceTryIfWorldChanged(seed)) {
-                ToqueLog.info("New world detected; this is Try #{}.", services.stats().tryNumber());
-            } else {
-                ToqueLog.info("Same world as before; still Try #{}.", services.stats().tryNumber());
-            }
+            services.tryWatcher().check(server);
+            ToqueLog.info("Running Try #{}.", services.stats().tryNumber());
             services.tabList().sendHeaderAndFooter(server);
         });
 
@@ -80,11 +78,12 @@ public final class ToqueDeathAlert implements ModInitializer {
 
         TabListService tabList = new TabListService(new TabRowRenderer(stats));
         VanillaDeathsImporter importer = new VanillaDeathsImporter(stats, new VanillaDeathsLookup());
+        TryWatcher tryWatcher = new TryWatcher(stats);
 
         ToqueLog.info("Stats loaded from {} (series #{}, vanilla import {}).",
                 stats.file(), stats.seriesNumber(),
                 stats.isVanillaImportOpen() ? "open" : "closed");
-        return new ToqueRuntime.Services(stats, tabList, importer);
+        return new ToqueRuntime.Services(stats, tabList, importer, tryWatcher);
     }
 
     private void registerConnection() {
@@ -118,10 +117,12 @@ public final class ToqueDeathAlert implements ModInitializer {
 
     private void registerTick() {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
-            TabListService tabList = RUNTIME.tabList();
-            if (tabList != null) {
-                tabList.onServerTick(server);
+            ToqueRuntime.Services services = RUNTIME.services();
+            if (services == null) {
+                return;
             }
+            services.tryWatcher().onServerTick(server);
+            services.tabList().onServerTick(server);
         });
     }
 }
