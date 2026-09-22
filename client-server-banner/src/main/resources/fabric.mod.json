@@ -3,7 +3,7 @@
   "id": "toque-server-banner",
   "version": "${version}",
   "name": "TOQUE Server Banner",
-  "description": "Custom TOQUE server entry for the Minecraft 1.21.1 multiplayer screen.",
+  "description": "Custom animated TOQUE server entry for the Minecraft multiplayer screen.",
   "authors": ["JosueBrenes"],
   "environment": "client",
   "entrypoints": {
