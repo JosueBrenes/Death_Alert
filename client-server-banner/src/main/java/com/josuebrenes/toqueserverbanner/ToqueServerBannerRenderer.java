@@ -94,19 +94,11 @@ public final class ToqueServerBannerRenderer {
         context.drawTextWithShadow(
                 textRenderer,
                 message,
-                x + 108,
+                Math.max(x + 230, right - Math.min(220, textRenderer.getWidth(message))),
                 y + 24,
                 messageColor
         );
 
-        String subtitle = "TOQUE HARDCORE";
-        context.drawTextWithShadow(
-                textRenderer,
-                subtitle,
-                x + 108,
-                y + 13,
-                0xFFFF3333
-        );
     }
 
     private static String getPlayerCount(ServerInfo server) {
