@@ -61,29 +61,39 @@ public final class StatusMotd {
             return null;
         }
 
-        String title = SKULL + " T O Q U E   H A R D C O R E " + SKULL;
-        String status = statusLine(server, stats);
-
-        return centred(title, TITLE_FROM, TITLE_TO)
+        return centred(titleLine(server, stats), TITLE_FROM, TITLE_TO)
                 .append(Text.literal("\n"))
-                .append(centred(status, STATUS_FROM, STATUS_TO));
+                .append(centred(deathLine(stats), STATUS_FROM, STATUS_TO));
     }
 
     /**
-     * The second line, with the tagline dropped rather than clipped when the
-     * numbers have grown long enough to fill the row on their own.
+     * The name, with where the series stands in brackets after it.
+     *
+     * <p>Written tight rather than l e t t e r  s p a c e d: the spaced form read
+     * as a row of loose glyphs instead of a word, and it cost so much width that
+     * nothing else fitted beside it.
      */
-    private static String statusLine(MinecraftServer server, SeriesStatsRepository stats) {
-        StringBuilder line = new StringBuilder("[TRY #").append(stats.tryNumber());
+    private static String titleLine(MinecraftServer server, SeriesStatsRepository stats) {
+        StringBuilder line = new StringBuilder(SKULL + " TOQUE HARDCORE [TRY #")
+                .append(stats.tryNumber());
 
         long day = currentDay(server);
         if (day > 0L) {
             line.append(' ').append(ARROW).append(" DÍA ").append(day);
         }
-        line.append("]  ·  ").append(SKULL).append(' ').append(stats.totalDeaths());
+        return line.append("] ").append(SKULL).toString();
+    }
 
-        String withTagline = line + "  ·  " + tagline();
-        return FontWidth.of(withTagline, true) <= MOTD_WIDTH_PX ? withTagline : line.toString();
+    /**
+     * The toll so far and a tagline that changes every few seconds, with the
+     * tagline dropped rather than clipped if the numbers ever fill the row.
+     */
+    private static String deathLine(SeriesStatsRepository stats) {
+        int deaths = stats.totalDeaths();
+        String toll = SKULL + " " + deaths + (deaths == 1 ? " MUERTE" : " MUERTES");
+
+        String withTagline = toll + "  ·  " + tagline();
+        return FontWidth.of(withTagline, true) <= MOTD_WIDTH_PX ? withTagline : toll;
     }
 
     /** Centres the line in the MOTD area and fades it from one colour to the other. */
