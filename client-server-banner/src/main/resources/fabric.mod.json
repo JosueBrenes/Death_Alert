@@ -11,7 +11,7 @@
       "com.josuebrenes.toqueserverbanner.ToqueServerBannerClient"
     ]
   },
-  "mixins": [
+  "client": [
     "toque-server-banner.mixins.json"
   ],
   "depends": {
