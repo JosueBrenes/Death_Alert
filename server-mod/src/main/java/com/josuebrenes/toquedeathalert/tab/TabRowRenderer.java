@@ -2,6 +2,7 @@ package com.josuebrenes.toquedeathalert.tab;
 
 import com.josuebrenes.toquedeathalert.core.FontWidth;
 import com.josuebrenes.toquedeathalert.core.Gradient;
+import com.josuebrenes.toquedeathalert.role.PlayerRole;
 import com.josuebrenes.toquedeathalert.series.SeriesStatsRepository;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -16,14 +17,8 @@ import java.util.Locale;
  * Draws the TOQUE player list: a two line banner, the player rows, and the
  * objective underneath.
  *
- * <p>Deliberately spare. An earlier version drew a box around the banner, spelled
- * the title out letter by letter and repeated the series number below; between
- * the frame lines and the headings it spent seven lines saying what fits in
- * three, while the rows are what people actually read.
- *
- * <p>Nothing here is centred by hand. The client already centres every line of
- * the header and the footer on its own, so adding leading spaces would centre
- * the text twice and push it off to the right.
+ * <p>The role is derived automatically from the current TOQUE death counter.
+ * Nothing is stored separately, so the role always follows the death count.
  */
 public final class TabRowRenderer {
     private static final String SKULL = "☠";
@@ -31,6 +26,7 @@ public final class TabRowRenderer {
 
     /** Column positions inside a player row, in pixels. */
     private static final int NAME_COLUMN_PX = 84;
+    private static final int ROLE_COLUMN_PX = 176;
     private static final int HEALTH_COLUMN_PX = 108;
 
     private static final long TICKS_PER_DAY = 24000L;
@@ -42,13 +38,27 @@ public final class TabRowRenderer {
     }
 
     public Text row(ServerPlayerEntity player) {
+        int deaths = stats.deathsOf(player.getUuid());
+
         String name = FontWidth.padTo(player.getGameProfile().getName(), NAME_COLUMN_PX);
+
+        PlayerRole role = PlayerRole.fromDeaths(deaths);
+        Text roleText = Text.literal(role.label()).formatted(role.formatting());
+
+        String roleGap = FontWidth.spaces(
+                Math.max(4, ROLE_COLUMN_PX - FontWidth.of(roleText.getString()))
+        );
+
         Text health = HeartBar.render(player.getHealth(), player.getMaxHealth());
-        String gap = FontWidth.spaces(HEALTH_COLUMN_PX - FontWidth.of(health.getString()));
+        String healthGap = FontWidth.spaces(
+                Math.max(4, HEALTH_COLUMN_PX - FontWidth.of(health.getString()))
+        );
 
         return Text.literal(name).formatted(Formatting.WHITE)
+                .append(roleText)
+                .append(Text.literal(roleGap))
                 .append(health)
-                .append(Text.literal(gap))
+                .append(Text.literal(healthGap))
                 .append(deaths(stats.deathsOf(player.getUuid())));
     }
 
