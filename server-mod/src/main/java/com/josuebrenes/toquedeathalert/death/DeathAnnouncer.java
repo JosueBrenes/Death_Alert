@@ -29,8 +29,9 @@ public final class DeathAnnouncer {
                 .append(deadPlayer.getName().copy().formatted(Formatting.RED, Formatting.BOLD))
                 .append(Text.literal(" HA MUERTO " + SKULL).formatted(Formatting.DARK_RED, Formatting.BOLD));
 
-        Text subtitle = Text.literal(role.label() + "  •  LA RUN HA TERMINADO")
-                .formatted(role.formatting(), Formatting.BOLD);
+        Text subtitle = role.badge()
+                .append(Text.literal("  •  LA RUN HA TERMINADO")
+                        .formatted(Formatting.RED, Formatting.BOLD));
 
         for (ServerPlayerEntity viewer : server.getPlayerManager().getPlayerList()) {
             viewer.networkHandler.sendPacket(new TitleFadeS2CPacket(5, 80, 10));

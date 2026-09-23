@@ -1,36 +1,71 @@
 package com.josuebrenes.toquedeathalert.role;
 
+import com.josuebrenes.toquedeathalert.core.Gradient;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
 /**
  * Automatic TOQUE status derived only from the player's current-series death count.
  * No role is stored separately, so it can never become out of sync with the counter.
+ *
+ * <p>Each rank carries a sigil and its own two colour fade rather than one flat
+ * colour, so a rank reads as a badge and the climb from INTACTO to HIJO DE LA
+ * MUERTE is visible at a glance instead of being a word in a different colour.
  */
 public enum PlayerRole {
-    INTACTO(0, "INTACTO", Formatting.AQUA),
-    SOBREVIVIENTE(1, "SOBREVIVIENTE", Formatting.GREEN),
-    MARCADO(2, "MARCADO", Formatting.YELLOW),
-    CONDENADO(3, "CONDENADO", Formatting.GOLD),
-    DELINCUENTE(4, "DELINCUENTE", Formatting.RED),
-    ESPECTRO(5, "ESPECTRO", Formatting.LIGHT_PURPLE),
-    HIJO_DE_LA_MUERTE(6, "HIJO DE LA MUERTE", Formatting.DARK_PURPLE);
+    INTACTO(0, "INTACTO", "✦", Formatting.AQUA, 0x8FF3FF, 0x1E9BC4),
+    SOBREVIVIENTE(1, "SOBREVIVIENTE", "❂", Formatting.GREEN, 0xA8FF9E, 0x2F9E33),
+    MARCADO(2, "MARCADO", "❖", Formatting.YELLOW, 0xFFF2A0, 0xD9A320),
+    CONDENADO(3, "CONDENADO", "✖", Formatting.GOLD, 0xFFC663, 0xC96A10),
+    DELINCUENTE(4, "DELINCUENTE", "⚔", Formatting.RED, 0xFF8A7A, 0xA30D0D),
+    ESPECTRO(5, "ESPECTRO", "☠", Formatting.LIGHT_PURPLE, 0xFFA8E8, 0x9A2BA0),
+    HIJO_DE_LA_MUERTE(6, "HIJO DE LA MUERTE", "☠", Formatting.DARK_PURPLE, 0xC98BFF, 0x4B1170);
 
     private final int minimumDeaths;
     private final String label;
+    private final String sigil;
     private final Formatting formatting;
+    private final int gradientFrom;
+    private final int gradientTo;
 
-    PlayerRole(int minimumDeaths, String label, Formatting formatting) {
+    PlayerRole(int minimumDeaths, String label, String sigil, Formatting formatting,
+               int gradientFrom, int gradientTo) {
         this.minimumDeaths = minimumDeaths;
         this.label = label;
+        this.sigil = sigil;
         this.formatting = formatting;
+        this.gradientFrom = gradientFrom;
+        this.gradientTo = gradientTo;
     }
 
     public String label() {
         return label;
     }
 
+    public String sigil() {
+        return sigil;
+    }
+
     public Formatting formatting() {
         return formatting;
+    }
+
+    /** The rank as plain text, sigil included, for measuring and for logs. */
+    public String plain() {
+        return sigil + " " + label;
+    }
+
+    /** The rank as a badge: sigil and name, faded across the rank's own colours. */
+    public MutableText badge() {
+        return Gradient.apply(plain(), gradientFrom, gradientTo, true);
+    }
+
+    /** The badge in brackets, for sitting in front of a player name. */
+    public MutableText tag() {
+        return Text.literal("[").formatted(Formatting.DARK_GRAY)
+                .append(badge())
+                .append(Text.literal("]").formatted(Formatting.DARK_GRAY));
     }
 
     public static PlayerRole fromDeaths(int deaths) {

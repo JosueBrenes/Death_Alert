@@ -43,7 +43,7 @@ public final class TabRowRenderer {
         String name = FontWidth.padTo(player.getGameProfile().getName(), NAME_COLUMN_PX);
 
         PlayerRole role = PlayerRole.fromDeaths(deaths);
-        Text roleText = Text.literal(role.label()).formatted(role.formatting());
+        Text roleText = role.badge();
 
         String roleGap = FontWidth.spaces(
                 Math.max(4, ROLE_COLUMN_PX - FontWidth.of(roleText.getString()))
