@@ -41,32 +41,22 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class SidebarHud {
     private static final String OBJECTIVE_NAME = "toque_hud";
 
+    private static final int ADD_MODE = 0;
+    private static final int REMOVE_MODE = 1;
+
     /** Lines refresh five times a second; coordinates change as the player walks. */
     private static final int REFRESH_TICKS = 4;
-
-    /**
-     * How often the objective itself is re-declared. A client drops its whole
-     * scoreboard when it changes dimension, and Hardcore World Reset moves
-     * everybody to a freshly generated world, so re-sending it heals the panel
-     * without needing to catch every way a world can go away.
-     */
-    private static final int REINSTALL_TICKS = 100;
 
     private final SeriesStatsRepository stats;
     private final Map<UUID, List<String>> lastLines = new ConcurrentHashMap<>();
     private ScoreboardObjective objective;
     private int refreshCounter;
-    private int reinstallCounter;
 
     public SidebarHud(SeriesStatsRepository stats) {
         this.stats = stats;
     }
 
     public void onServerTick(MinecraftServer server) {
-        if (++reinstallCounter >= REINSTALL_TICKS) {
-            reinstallCounter = 0;
-            server.getPlayerManager().getPlayerList().forEach(player -> install(server, player));
-        }
         if (++refreshCounter < REFRESH_TICKS) {
             return;
         }
@@ -74,10 +64,20 @@ public final class SidebarHud {
         server.getPlayerManager().getPlayerList().forEach(player -> refresh(server, player));
     }
 
-    /** Declares the objective on this client and puts it in the sidebar slot. */
+    /**
+     * Declares the objective on this client and puts it in the sidebar slot.
+     *
+     * <p>Removed before it is added. The client throws if it is asked to create an
+     * objective it already has, so a plain create is only safe on a client whose
+     * scoreboard is empty; a remove for one it does not have is ignored. Getting
+     * this wrong crashed the client every time the panel was reinstalled.
+     */
     public void install(MinecraftServer server, ServerPlayerEntity player) {
         ScoreboardObjective target = objective(server);
-        player.networkHandler.sendPacket(new ScoreboardObjectiveUpdateS2CPacket(target, 0));
+        player.networkHandler.sendPacket(
+                new ScoreboardObjectiveUpdateS2CPacket(target, REMOVE_MODE));
+        player.networkHandler.sendPacket(
+                new ScoreboardObjectiveUpdateS2CPacket(target, ADD_MODE));
         player.networkHandler.sendPacket(
                 new ScoreboardDisplayS2CPacket(ScoreboardDisplaySlot.SIDEBAR, target));
         lastLines.remove(player.getUuid());
@@ -118,8 +118,8 @@ public final class SidebarHud {
                 .formatted(Formatting.RED)));
         lines.add(blank());
         lines.add(entry("XYZ", Text.literal(pos.getX() + " " + pos.getY() + " " + pos.getZ())
-                .formatted(Formatting.GRAY)));
-        lines.add(entry("Mundo", Text.literal(dimension(player)).formatted(Formatting.GRAY)));
+                .formatted(Formatting.AQUA)));
+        lines.add(entry("Mundo", Text.literal(dimension(player)).formatted(Formatting.GREEN)));
         lines.add(blank());
         lines.add(entry("Try", Text.literal("#" + stats.tryNumber()).formatted(Formatting.GOLD)));
         lines.add(entry("Día", Text.literal(Long.toString(currentDay(server)))
@@ -129,8 +129,10 @@ public final class SidebarHud {
     }
 
     private static Text entry(String label, Text value) {
-        return Text.literal("▪ ").formatted(Formatting.DARK_GRAY)
-                .append(Text.literal(label + ": ").formatted(Formatting.GRAY))
+        // Grey on grey was almost unreadable over the world behind the panel, so
+        // the labels are white and only the bullet is dimmed.
+        return Text.literal("▪ ").formatted(Formatting.GRAY)
+                .append(Text.literal(label + ": ").formatted(Formatting.WHITE))
                 .append(value);
     }
 

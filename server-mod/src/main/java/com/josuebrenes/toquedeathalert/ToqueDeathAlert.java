@@ -15,6 +15,8 @@ import com.josuebrenes.toquedeathalert.tab.TabListService;
 import com.josuebrenes.toquedeathalert.tab.TabRowRenderer;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -102,9 +104,18 @@ public final class ToqueDeathAlert implements ModInitializer {
             services.tabList().invalidate(player.getUuid());
             // Everyone gets it: the footer carries the online count.
             services.tabList().sendHeaderAndFooter(server);
-            services.hud().install(server, player);
-            services.nametags().onJoin(server, player);
+            reinstallOverlays(server, player);
         });
+
+        // A client throws its whole scoreboard away when it changes world, taking
+        // the panel and the rank teams with it. Hardcore World Reset moves everyone
+        // to a freshly generated world on every Try, and dying moves them too, so
+        // both have to be put back rather than left to a timer.
+        ServerPlayerEvents.AFTER_RESPAWN.register(
+                (oldPlayer, newPlayer, alive) -> reinstallOverlays(newPlayer.server, newPlayer));
+
+        ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register(
+                (player, origin, destination) -> reinstallOverlays(player.server, player));
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             ToqueRuntime.Services services = RUNTIME.services();
@@ -117,6 +128,16 @@ public final class ToqueDeathAlert implements ModInitializer {
             services.hud().forget(uuid);
             services.nametags().forget(uuid);
         });
+    }
+
+    /** Puts the sidebar and the rank teams back on one player's client. */
+    private static void reinstallOverlays(MinecraftServer server, ServerPlayerEntity player) {
+        ToqueRuntime.Services services = RUNTIME.services();
+        if (services == null) {
+            return;
+        }
+        services.hud().install(server, player);
+        services.nametags().install(server, player);
     }
 
     private void registerCommands() {

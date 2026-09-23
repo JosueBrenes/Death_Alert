@@ -38,9 +38,16 @@ public final class RoleNametags {
         this.stats = stats;
     }
 
-    /** Defines every rank team on this player's client, then places everyone. */
-    public void onJoin(MinecraftServer server, ServerPlayerEntity player) {
+    /**
+     * Defines every rank team on this player's client, then places everyone.
+     *
+     * <p>Also needed after a world change: the client throws its whole scoreboard
+     * away, teams included, so the names above heads would lose their rank until
+     * the teams are declared again.
+     */
+    public void install(MinecraftServer server, ServerPlayerEntity player) {
         for (Team team : teamsFor(server).values()) {
+            player.networkHandler.sendPacket(TeamS2CPacket.updateRemovedTeam(team));
             player.networkHandler.sendPacket(TeamS2CPacket.updateTeam(team, true));
         }
         assigned.clear();
