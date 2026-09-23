@@ -5,7 +5,9 @@ import com.josuebrenes.toquedeathalert.core.ToqueLog;
 import com.josuebrenes.toquedeathalert.core.ToqueRuntime;
 import com.josuebrenes.toquedeathalert.death.DeathAnnouncer;
 import com.josuebrenes.toquedeathalert.death.DeathListener;
+import com.josuebrenes.toquedeathalert.hud.SidebarHud;
 import com.josuebrenes.toquedeathalert.migration.VanillaDeathsImporter;
+import com.josuebrenes.toquedeathalert.nametag.RoleNametags;
 import com.josuebrenes.toquedeathalert.migration.VanillaDeathsLookup;
 import com.josuebrenes.toquedeathalert.series.SeriesStatsRepository;
 import com.josuebrenes.toquedeathalert.series.TryWatcher;
@@ -79,11 +81,13 @@ public final class ToqueDeathAlert implements ModInitializer {
         TabListService tabList = new TabListService(new TabRowRenderer(stats));
         VanillaDeathsImporter importer = new VanillaDeathsImporter(stats, new VanillaDeathsLookup());
         TryWatcher tryWatcher = new TryWatcher(stats);
+        SidebarHud hud = new SidebarHud(stats);
+        RoleNametags nametags = new RoleNametags(stats);
 
         ToqueLog.info("Stats loaded from {} (series #{}, vanilla import {}).",
                 stats.file(), stats.seriesNumber(),
                 stats.isVanillaImportOpen() ? "open" : "closed");
-        return new ToqueRuntime.Services(stats, tabList, importer, tryWatcher);
+        return new ToqueRuntime.Services(stats, tabList, importer, tryWatcher, hud, nametags);
     }
 
     private void registerConnection() {
@@ -98,14 +102,20 @@ public final class ToqueDeathAlert implements ModInitializer {
             services.tabList().invalidate(player.getUuid());
             // Everyone gets it: the footer carries the online count.
             services.tabList().sendHeaderAndFooter(server);
+            services.hud().install(server, player);
+            services.nametags().onJoin(server, player);
         });
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
-            TabListService tabList = RUNTIME.tabList();
-            if (tabList != null) {
-                tabList.invalidate(handler.getPlayer().getUuid());
-                tabList.sendHeaderAndFooter(server);
+            ToqueRuntime.Services services = RUNTIME.services();
+            if (services == null) {
+                return;
             }
+            java.util.UUID uuid = handler.getPlayer().getUuid();
+            services.tabList().invalidate(uuid);
+            services.tabList().sendHeaderAndFooter(server);
+            services.hud().forget(uuid);
+            services.nametags().forget(uuid);
         });
     }
 
@@ -123,6 +133,8 @@ public final class ToqueDeathAlert implements ModInitializer {
             }
             services.tryWatcher().onServerTick(server);
             services.tabList().onServerTick(server);
+            services.hud().onServerTick(server);
+            services.nametags().refresh(server);
         });
     }
 }
