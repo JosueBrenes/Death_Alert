@@ -28,7 +28,7 @@ across the whole series.
 ├── mods/
 │   ├── death-alert/              Server mod
 │   └── server-banner/            Client mod
-└── TOQUE_Death_ResourcePack.zip  Served to players by the server (see below)
+└── resourcepack/                 Pushed to players by the server (see below)
 ```
 
 A module's own `build.gradle` declares only its archive name. Everything else —
@@ -100,13 +100,15 @@ name can change.
 
 ## Resource pack
 
-`TOQUE_Death_ResourcePack.zip` sits at the repository root because the server serves
-it straight from this URL, pinned by SHA-1 in `server.properties`:
+[`resourcepack/`](resourcepack) holds the pack carrying the `toque:death` sound. The
+server pushes it to players automatically, serving it from this repository by raw URL
+and pinning it by hash in `server.properties`:
 
-```
-resource-pack=https://raw.githubusercontent.com/JosueBrenes/Death_Alert/main/TOQUE_Death_ResourcePack.zip
+```properties
+resource-pack=https://raw.githubusercontent.com/JosueBrenes/Death_Alert/main/resourcepack/TOQUE_Death_ResourcePack.zip
+resource-pack-sha1=7b57fb56c92e528a81e001797febf04b72c2a8cc
 ```
 
-Moving or rebuilding the file changes that hash and the server stops accepting it, so
-it is deliberately left where it is. Replacing it means updating both the file and
-`resource-pack-sha1`.
+Both lines are coupled to the file: its path decides the URL and its contents decide
+the hash, so moving it or rebuilding it means editing `server.properties` to match.
+See [`resourcepack/README.md`](resourcepack/README.md).
