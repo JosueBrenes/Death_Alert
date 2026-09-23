@@ -1,13 +1,20 @@
 # TOQUE
 
-[![Build](https://github.com/JosueBrenes/Death_Alert/actions/workflows/build.yml/badge.svg)](https://github.com/JosueBrenes/Death_Alert/actions/workflows/build.yml)
-![Minecraft 1.21.1](https://img.shields.io/badge/Minecraft-1.21.1-brightgreen)
-![Fabric](https://img.shields.io/badge/Fabric-0.19.5-lightgrey)
-![Java 21](https://img.shields.io/badge/Java-21-orange)
+[![Build](https://github.com/JosueBrenes/TOQUE/actions/workflows/build.yml/badge.svg)](https://github.com/JosueBrenes/TOQUE/actions/workflows/build.yml)
+[![Latest build](https://img.shields.io/github/actions/workflow/status/JosueBrenes/TOQUE/build.yml?branch=main&label=jars&logo=github)](https://github.com/JosueBrenes/TOQUE/actions/workflows/build.yml)
+[![Last commit](https://img.shields.io/github/last-commit/JosueBrenes/TOQUE?logo=git&logoColor=white)](https://github.com/JosueBrenes/TOQUE/commits/main)
+
+![Minecraft 1.21.1](https://img.shields.io/badge/Minecraft-1.21.1-62B47A?logo=minecraft&logoColor=white)
+![Fabric Loader 0.19.5](https://img.shields.io/badge/Fabric%20Loader-0.19.5-DBD0B4)
+![Fabric API 0.116.17](https://img.shields.io/badge/Fabric%20API-0.116.17-DBD0B4)
+![Java 21](https://img.shields.io/badge/Java-21-E76F00?logo=openjdk&logoColor=white)
+![Gradle 8.10.2](https://img.shields.io/badge/Gradle-8.10.2-02303A?logo=gradle&logoColor=white)
+
+> One death wipes the world. The counters do not.
 
 Two Fabric mods for the **TOQUE Hardcore** series: a Minecraft run where a single
-death wipes the world and starts the next Try, while the death counters carry on
-across the whole series.
+death erases the world and starts the next Try, while every player's death count
+carries on across the whole series.
 
 | | |
 |---|---|
@@ -105,7 +112,7 @@ server pushes it to players automatically, serving it from this repository by ra
 and pinning it by hash in `server.properties`:
 
 ```properties
-resource-pack=https://raw.githubusercontent.com/JosueBrenes/Death_Alert/main/resourcepack/TOQUE_Death_ResourcePack.zip
+resource-pack=https://raw.githubusercontent.com/JosueBrenes/TOQUE/main/resourcepack/TOQUE_Death_ResourcePack.zip
 resource-pack-sha1=7b57fb56c92e528a81e001797febf04b72c2a8cc
 ```
 

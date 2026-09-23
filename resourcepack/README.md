@@ -8,7 +8,7 @@ a run ends. The server pushes it to players automatically; nobody installs it by
 `server.properties` points at the raw URL and pins the file by hash:
 
 ```properties
-resource-pack=https://raw.githubusercontent.com/JosueBrenes/Death_Alert/main/resourcepack/TOQUE_Death_ResourcePack.zip
+resource-pack=https://raw.githubusercontent.com/JosueBrenes/TOQUE/main/resourcepack/TOQUE_Death_ResourcePack.zip
 resource-pack-sha1=7b57fb56c92e528a81e001797febf04b72c2a8cc
 ```
 
