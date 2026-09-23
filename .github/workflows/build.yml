@@ -1,18 +1,15 @@
-name: Build TOQUE Server Banner
+name: Build
 
 on:
   push:
-    paths:
-      - "client-server-banner/**"
-      - ".github/workflows/build-toque-server-banner.yml"
+    branches: ["main"]
+  pull_request:
   workflow_dispatch:
 
 jobs:
   build:
+    name: Build both mods
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: client-server-banner
 
     steps:
       - name: Checkout
@@ -24,16 +21,21 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      # The wrapper pins the Gradle version, so nothing here chooses one.
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.10.2"
 
       - name: Build
-        run: gradle build --no-daemon
+        run: ./gradlew build --no-daemon
+
+      - name: Upload server mod
+        uses: actions/upload-artifact@v4
+        with:
+          name: toque-death-alert
+          path: mods/death-alert/build/libs/toque-death-alert-*[0-9].jar
 
       - name: Upload client mod
         uses: actions/upload-artifact@v4
         with:
           name: toque-server-banner
-          path: client-server-banner/build/libs/toque-server-banner-*.jar
+          path: mods/server-banner/build/libs/toque-server-banner-*[0-9].jar
