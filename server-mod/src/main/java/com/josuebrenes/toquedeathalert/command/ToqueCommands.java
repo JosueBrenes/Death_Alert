@@ -3,6 +3,7 @@ package com.josuebrenes.toquedeathalert.command;
 import com.josuebrenes.toquedeathalert.core.ToqueLog;
 import com.josuebrenes.toquedeathalert.core.ToqueRuntime;
 import com.josuebrenes.toquedeathalert.migration.VanillaDeathsLookup;
+import com.josuebrenes.toquedeathalert.role.PlayerRole;
 import com.josuebrenes.toquedeathalert.series.PlayerDeathRecord;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -88,8 +89,10 @@ public final class ToqueCommands {
             return 0;
         }
         for (PlayerDeathRecord record : records) {
+            PlayerRole role = PlayerRole.fromDeaths(record.deaths());
             source.sendFeedback(() -> Text.literal(record.displayName() + " ").formatted(Formatting.WHITE)
-                    .append(Text.literal(SKULL + " " + record.deaths()).formatted(Formatting.RED)), false);
+                    .append(Text.literal(role.label()).formatted(role.formatting()))
+                    .append(Text.literal("  " + SKULL + " " + record.deaths()).formatted(Formatting.RED)), false);
         }
         return records.size();
     }
@@ -113,6 +116,7 @@ public final class ToqueCommands {
         line(source, "Import vanilla abierto", Boolean.toString(services.stats().isVanillaImportOpen()));
         line(source, "Jugador", record.displayName() + " (" + player.getUuid() + ")");
         line(source, "Muertes TOQUE", Integer.toString(record.deaths()));
+        line(source, "Rol", PlayerRole.fromDeaths(record.deaths()).label());
         line(source, "Ya migrado", Boolean.toString(record.migrated()));
         line(source, "Muertes vanilla", vanilla.deaths() + " [" + vanilla.origin() + "]");
         return 1;
