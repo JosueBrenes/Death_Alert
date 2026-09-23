@@ -1,5 +1,7 @@
 package com.josuebrenes.toquedeathalert.death;
 
+import com.josuebrenes.toquedeathalert.ToqueDeathAlert;
+import com.josuebrenes.toquedeathalert.role.PlayerRole;
 import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
 import net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket;
 import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
@@ -17,12 +19,18 @@ public final class DeathAnnouncer {
     private static final String SKULL = "☠";
 
     public void announce(MinecraftServer server, ServerPlayerEntity deadPlayer) {
+        int deaths = ToqueDeathAlert.runtime().stats() == null
+                ? 0
+                : ToqueDeathAlert.runtime().stats().deathsOf(deadPlayer.getUuid());
+        PlayerRole role = PlayerRole.fromDeaths(deaths);
+
         Text title = Text.literal(SKULL + " ")
                 .formatted(Formatting.DARK_RED, Formatting.BOLD)
                 .append(deadPlayer.getName().copy().formatted(Formatting.RED, Formatting.BOLD))
                 .append(Text.literal(" HA MUERTO " + SKULL).formatted(Formatting.DARK_RED, Formatting.BOLD));
 
-        Text subtitle = Text.literal("LA RUN HA TERMINADO").formatted(Formatting.RED, Formatting.BOLD);
+        Text subtitle = Text.literal(role.label() + "  •  LA RUN HA TERMINADO")
+                .formatted(role.formatting(), Formatting.BOLD);
 
         for (ServerPlayerEntity viewer : server.getPlayerManager().getPlayerList()) {
             viewer.networkHandler.sendPacket(new TitleFadeS2CPacket(5, 80, 10));
