@@ -1,0 +1,4 @@
+// Client-side mod. Everything else comes from the root build.
+base {
+    archivesName = "toque-server-banner"
+}

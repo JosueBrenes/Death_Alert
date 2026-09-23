@@ -1,0 +1,18 @@
+pluginManagement {
+    repositories {
+        maven { url = "https://maven.fabricmc.net/" }
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "toque"
+
+// The mods live under mods/, but they are declared as top level projects and
+// pointed at their directory. Including them as "mods:death-alert" instead would
+// make Gradle invent an empty :mods project in between and build a jar for it.
+include("death-alert")
+include("server-banner")
+
+project(":death-alert").projectDir = file("mods/death-alert")
+project(":server-banner").projectDir = file("mods/server-banner")
