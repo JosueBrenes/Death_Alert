@@ -1,0 +1,13 @@
+# core.autocrlf is on for this repository, so text files are normalised on the
+# way in and out. Say outright which files are binary: a PNG or a jar rewritten
+# with CRLF line endings is silently destroyed, and the damage only shows up
+# when something tries to read it.
+* text=auto
+
+*.png binary
+*.jar binary
+*.zip binary
+*.ogg binary
+
+# Shipped with LF regardless of platform; the wrapper will not run otherwise.
+gradlew text eol=lf
