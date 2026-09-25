@@ -27,17 +27,17 @@ public final class ToqueServerBannerRenderer {
     private static final long MESSAGE_MILLIS = 1800L;
     private static final long PULSE_MILLIS = 2200L;
 
-    private static final int LOGO_TEXTURE_WIDTH = 128;
-    private static final int LOGO_TEXTURE_HEIGHT = 16;
-    private static final int LOGO_WIDTH = 80;
-    private static final int LOGO_HEIGHT = 10;
+    private static final int LOGO_TEXTURE_SIZE = 64;
+    private static final int LOGO_SIZE = 26;
 
     private static final int PADDING = 5;
+    /** Gap between the logo and the text column beside it. */
+    private static final int LOGO_GAP = 6;
 
-    private static final int BACKGROUND_TOP = 0xF01A0406;
-    private static final int BACKGROUND_BOTTOM = 0xF00D0203;
-    private static final int BACKGROUND_TOP_HOVER = 0xF043090D;
-    private static final int BACKGROUND_BOTTOM_HOVER = 0xF01E0407;
+    private static final int BACKGROUND_TOP = 0xFF1A0406;
+    private static final int BACKGROUND_BOTTOM = 0xFF0D0203;
+    private static final int BACKGROUND_TOP_HOVER = 0xFF43090D;
+    private static final int BACKGROUND_BOTTOM_HOVER = 0xFF1E0407;
 
     private ToqueServerBannerRenderer() {
     }
@@ -49,23 +49,31 @@ public final class ToqueServerBannerRenderer {
         int right = x + entryWidth;
         int bottom = y + entryHeight;
 
+        // Vanilla's text is batched and only reaches the screen when the draw
+        // context is flushed, which happens after this injection returns. Without
+        // this the name and the MOTD are painted on top of the panel meant to hide
+        // them, and the row reads as two rows of text on top of each other.
+        context.draw();
+
         RenderSystem.enableBlend();
         drawPanel(context, x, y, right, bottom, hovered);
 
         context.drawTexture(ToqueServerBannerClientAssets.BANNER,
-                x + PADDING, y + PADDING, LOGO_WIDTH, LOGO_HEIGHT,
-                0.0F, 0.0F, LOGO_TEXTURE_WIDTH, LOGO_TEXTURE_HEIGHT,
-                LOGO_TEXTURE_WIDTH, LOGO_TEXTURE_HEIGHT);
+                x + PADDING, y + (entryHeight - LOGO_SIZE) / 2, LOGO_SIZE, LOGO_SIZE,
+                0.0F, 0.0F, LOGO_TEXTURE_SIZE, LOGO_TEXTURE_SIZE,
+                LOGO_TEXTURE_SIZE, LOGO_TEXTURE_SIZE);
 
-        drawSeries(context, font, server, right, y + PADDING);
-        context.drawTextWithShadow(font,
-                Text.literal("☠ TOQUE HARDCORE ☠").formatted(Formatting.RED, Formatting.BOLD),
-                x + PADDING, y + PADDING + LOGO_HEIGHT + 3, 0xFFFF5555);
-        drawStatus(context, font, server, right, y + PADDING + LOGO_HEIGHT + 3);
+        int textX = x + PADDING + LOGO_SIZE + LOGO_GAP;
+        drawTitle(context, font, textX, y + 4);
+        drawSeries(context, font, server, right, y + 4);
+        drawStatus(context, font, server, right, y + 15);
         context.drawTextWithShadow(font,
                 Text.literal(currentMessage()).formatted(Formatting.GRAY),
-                x + PADDING, bottom - PADDING - font.fontHeight + 1, 0xFFB0A0A0);
+                textX, y + 25, 0xFFB0A0A0);
 
+        // Flush again so the panel's own text cannot be reordered behind whatever
+        // the screen draws after this entry.
+        context.draw();
         RenderSystem.disableBlend();
     }
 
@@ -83,6 +91,13 @@ public final class ToqueServerBannerRenderer {
 
         context.drawBorder(x, y, right - x, bottom - y, border);
         context.fill(x, y, x + 2, bottom, border);
+    }
+
+    private static void drawTitle(DrawContext context, TextRenderer font, int x, int y) {
+        context.drawTextWithShadow(font,
+                Text.literal("☠ TOQUE HARDCORE ☠")
+                        .formatted(Formatting.RED, Formatting.BOLD),
+                x, y, 0xFFFF5555);
     }
 
     /** TRY and DAY, right aligned on the first line, when the MOTD carries them. */
